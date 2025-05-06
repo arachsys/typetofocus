@@ -31,53 +31,62 @@ func getpsn(_ window: CGWindowID) -> ProcessSerialNumber? {
 }
 
 func focused() -> CGWindowID? {
+  var element: AXUIElement
   var value: CFTypeRef?
   var window = CGWindowID()
 
-  if let front = NSWorkspace.shared.frontmostApplication {
-    let application = AXUIElementCreateApplication(front.processIdentifier)
-    if AXUIElementCopyAttributeValue(application,
+  guard let front = NSWorkspace.shared.frontmostApplication else {
+    return nil
+  }
+
+  element = AXUIElementCreateApplication(front.processIdentifier)
+  guard AXUIElementCopyAttributeValue(element,
           kAXFocusedWindowAttribute as CFString, &value) == .success,
-        let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
-      let element = unsafeBitCast(value, to: AXUIElement.self)
-      if _AXUIElementGetWindow(element, &window) == .success {
-        return window
-      }
-    }
+      let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
+    return nil
+  }
+
+  element = unsafeBitCast(value, to: AXUIElement.self)
+  if _AXUIElementGetWindow(element, &window) == .success {
+    return window
   }
   return nil
 }
 
 func target() -> CGWindowID? {
-  if let point = CGEvent(source: nil)?.location {
-    var element: AXUIElement? = nil
-    AXUIElementCopyElementAtPosition(accessibility,
-      Float(point.x), Float(point.y), &element)
+  var element: AXUIElement?
+  var value: CFTypeRef?
+  var window = CGWindowID()
 
-    while element != nil {
-      var value: CFTypeRef?
-      var window = CGWindowID()
-
-      if AXUIElementCopyAttributeValue(element!,
-            kAXRoleAttribute as CFString, &value) == .success,
-          value as? String == kAXDockItemRole as String {
-        break
-      }
-
-      if _AXUIElementGetWindow(element!, &window) == .success {
-        return window
-      }
-
-      if AXUIElementCopyAttributeValue(element!,
-            kAXParentAttribute as CFString, &value) == .success,
-          let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
-        element = unsafeBitCast(value, to: AXUIElement.self)
-      } else {
-        break
-      }
-    }
+  guard let point = CGEvent(source: nil)?.location else {
+    return nil
   }
-  return nil
+
+  guard AXUIElementCopyElementAtPosition(accessibility,
+	  Float(point.x), Float(point.y), &element) == .success,
+      var element else {
+    return nil
+  }
+
+  if AXUIElementCopyAttributeValue(element,
+	kAXRoleAttribute as CFString, &value) == .success,
+      value as? String == kAXDockItemRole as String {
+    return nil
+  }
+
+  while true {
+    if _AXUIElementGetWindow(element, &window) == .success {
+      return window
+    }
+
+    guard AXUIElementCopyAttributeValue(element,
+	    kAXParentAttribute as CFString, &value) == .success,
+	let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
+      return nil
+    }
+
+    element = unsafeBitCast(value, to: AXUIElement.self)
+  }
 }
 
 func focus() {
