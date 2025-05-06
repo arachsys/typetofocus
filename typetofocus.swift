@@ -58,6 +58,12 @@ func target() -> CGWindowID? {
       var value: CFTypeRef?
       var window = CGWindowID()
 
+      if AXUIElementCopyAttributeValue(element!,
+            kAXRoleAttribute as CFString, &value) == .success,
+          value as? String == kAXDockItemRole as String {
+        break
+      }
+
       if _AXUIElementGetWindow(element!, &window) == .success {
         return window
       }
