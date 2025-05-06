@@ -31,14 +31,16 @@ func getpsn(_ window: CGWindowID) -> ProcessSerialNumber? {
 }
 
 func focused() -> CGWindowID? {
-  if let front = NSWorkspace.shared.frontmostApplication {
-    let element = AXUIElementCreateApplication(front.processIdentifier)
-    var value: AnyObject?
+  var value: CFTypeRef?
+  var window = CGWindowID()
 
-    if AXUIElementCopyAttributeValue(element,
-        kAXFocusedWindowAttribute as CFString, &value) == .success {
-      var window = CGWindowID()
-      if _AXUIElementGetWindow(value as! AXUIElement?, &window) == .success {
+  if let front = NSWorkspace.shared.frontmostApplication {
+    let application = AXUIElementCreateApplication(front.processIdentifier)
+    if AXUIElementCopyAttributeValue(application,
+          kAXFocusedWindowAttribute as CFString, &value) == .success,
+        let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
+      let element = unsafeBitCast(value, to: AXUIElement.self)
+      if _AXUIElementGetWindow(element, &window) == .success {
         return window
       }
     }
@@ -53,16 +55,20 @@ func target() -> CGWindowID? {
       Float(point.x), Float(point.y), &element)
 
     while element != nil {
+      var value: CFTypeRef?
       var window = CGWindowID()
+
       if _AXUIElementGetWindow(element!, &window) == .success {
         return window
       }
-      var value: AnyObject?
+
       if AXUIElementCopyAttributeValue(element!,
-          kAXParentAttribute as CFString, &value) != .success {
-        return nil
+            kAXParentAttribute as CFString, &value) == .success,
+          let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
+        element = unsafeBitCast(value, to: AXUIElement.self)
+      } else {
+        break
       }
-      element = value as! AXUIElement?
     }
   }
   return nil
