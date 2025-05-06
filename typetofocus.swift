@@ -108,13 +108,18 @@ guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
     place: .headInsertEventTap, options: .defaultTap,
     eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
     callback: { _, type, event, _ in
-      if type == .keyDown {
-        focus()
+      switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+          exit(EXIT_FAILURE)
+        case .keyDown:
+          focus()
+        default:
+          break
       }
       return Unmanaged.passRetained(event)
     }, userInfo: nil) else {
   fputs("Failed to create event tap\n", stderr)
-  exit(1)
+  exit(EXIT_FAILURE)
 }
 
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
