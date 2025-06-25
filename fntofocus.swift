@@ -19,33 +19,6 @@ func active(_ psn: ProcessSerialNumber) -> Bool {
     && front.highLongOfPSN == psn.highLongOfPSN
 }
 
-func focused() -> CGWindowID? {
-  var value: CFTypeRef?
-  var window = CGWindowID()
-
-  guard let front = NSWorkspace.shared.frontmostApplication else {
-    return nil
-  }
-
-  var element = AXUIElementCreateApplication(front.processIdentifier)
-  guard AXUIElementCopyAttributeValue(element,
-          kAXFocusedWindowAttribute as CFString, &value) == .success,
-      let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
-    return nil
-  }
-
-  element = unsafeBitCast(value, to: AXUIElement.self)
-  if _AXUIElementGetWindow(element, &window) == .success {
-    return window
-  }
-  return nil
-}
-
-func owner(_ window: CGWindowID) -> String? {
-  return (CGWindowListCopyWindowInfo([.optionIncludingWindow], window)
-    as? [[String: Any]])?.first?[kCGWindowOwnerName as String] as? String
-}
-
 func focus() {
   var client = Int32()
   var location = CGPoint()
@@ -96,7 +69,34 @@ func focus() {
   SLPSPostEventRecordTo(&psn, &msg)
 }
 
-guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
+func focused() -> CGWindowID? {
+  var value: CFTypeRef?
+  var window = CGWindowID()
+
+  guard let front = NSWorkspace.shared.frontmostApplication else {
+    return nil
+  }
+
+  var element = AXUIElementCreateApplication(front.processIdentifier)
+  guard AXUIElementCopyAttributeValue(element,
+          kAXFocusedWindowAttribute as CFString, &value) == .success,
+      let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
+    return nil
+  }
+
+  element = unsafeBitCast(value, to: AXUIElement.self)
+  if _AXUIElementGetWindow(element, &window) == .success {
+    return window
+  }
+  return nil
+}
+
+func owner(_ window: CGWindowID) -> String? {
+  return (CGWindowListCopyWindowInfo([.optionIncludingWindow], window)
+    as? [[String: Any]])?.first?[kCGWindowOwnerName as String] as? String
+}
+
+guard let keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
     place: .headInsertEventTap, options: .defaultTap,
     eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
     callback: { _, type, event, _ in
@@ -116,6 +116,6 @@ guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
 }
 
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
-  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0), .commonModes)
-CGEvent.tapEnable(tap: tap, enable: true)
+  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, keys, 0), .commonModes)
+CGEvent.tapEnable(tap: keys, enable: true)
 RunLoop.main.run()
