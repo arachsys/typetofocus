@@ -19,19 +19,7 @@ func active(_ psn: ProcessSerialNumber) -> Bool {
     && front.highLongOfPSN == psn.highLongOfPSN
 }
 
-func getpsn(_ window: CGWindowID) -> ProcessSerialNumber? {
-  var cid = Int32()
-  var psn = ProcessSerialNumber()
-
-  if SLSGetWindowOwner(skylight, window, &cid) == .success
-      && SLSGetConnectionPSN(cid, &psn) == .success {
-    return psn
-  }
-  return nil
-}
-
 func focused() -> CGWindowID? {
-  var element: AXUIElement
   var value: CFTypeRef?
   var window = CGWindowID()
 
@@ -39,7 +27,7 @@ func focused() -> CGWindowID? {
     return nil
   }
 
-  element = AXUIElementCreateApplication(front.processIdentifier)
+  var element = AXUIElementCreateApplication(front.processIdentifier)
   guard AXUIElementCopyAttributeValue(element,
           kAXFocusedWindowAttribute as CFString, &value) == .success,
       let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
@@ -53,76 +41,59 @@ func focused() -> CGWindowID? {
   return nil
 }
 
-func target() -> CGWindowID? {
-  var element: AXUIElement?
-  var value: CFTypeRef?
-  var window = CGWindowID()
-
-  guard let point = CGEvent(source: nil)?.location else {
-    return nil
-  }
-
-  guard AXUIElementCopyElementAtPosition(accessibility,
-	  Float(point.x), Float(point.y), &element) == .success,
-      var element else {
-    return nil
-  }
-
-  if AXUIElementCopyAttributeValue(element,
-	kAXRoleAttribute as CFString, &value) == .success,
-      value as? String == kAXDockItemRole as String {
-    return nil
-  }
-
-  while true {
-    if _AXUIElementGetWindow(element, &window) == .success {
-      return window
-    }
-
-    guard AXUIElementCopyAttributeValue(element,
-	    kAXParentAttribute as CFString, &value) == .success,
-	let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
-      return nil
-    }
-
-    element = unsafeBitCast(value, to: AXUIElement.self)
-  }
+func owner(_ window: CGWindowID) -> String? {
+  return (CGWindowListCopyWindowInfo([.optionIncludingWindow], window)
+    as? [[String: Any]])?.first?[kCGWindowOwnerName as String] as? String
 }
 
 func focus() {
-  if let window = target(), var psn = getpsn(window) {
-    if active(psn) {
-      guard let focusedwindow = focused(), focusedwindow != window else {
-        return
-      }
+  var client = Int32()
+  var location = CGPoint()
+  var psn = ProcessSerialNumber()
+  var window = CGWindowID()
 
-      var msg = [UInt8](repeating: 0, count: 0x100)
-      msg[0x04] = 0xf8
-      msg[0x08] = 0x0d
+  guard var point = CGEvent(source: nil)?.location,
+      SLSFindWindowAndOwner(skylight, 0, 1, 0, &point, &location, &window,
+        &client) == .success,
+      SLSGetConnectionPSN(client, &psn) == .success else {
+    return
+  }
 
-      msg[0x3c...0x3f] = focusedwindow.littleEndianBytes
-      msg[0x8a] = 0x02 // Deactivate window
-      SLPSPostEventRecordTo(&psn, &msg)
+  if ["Dock", "Window Server"].contains(owner(window)) {
+    return
+  }
 
-      msg[0x3c...0x3f] = window.littleEndianBytes
-      msg[0x8a] = 0x01 // Activate window
-      SLPSPostEventRecordTo(&psn, &msg)
-    } else {
-      _SLPSSetFrontProcessWithOptions(&psn, window, kCPSUserGenerated)
+  if active(psn) {
+    guard let focused = focused(), focused != window else {
+      return
     }
 
-    var msg = [UInt8](repeating: 0, count: 0x100)
+    var msg = [UInt8](repeating: 0, count: 256)
     msg[0x04] = 0xf8
-    msg[0x20...0x2f] = ArraySlice<UInt8>(repeating: 0xff, count: 16)
-    msg[0x3a] = 0x10
+    msg[0x08] = 0x0d
+
+    msg[0x3c...0x3f] = focused.littleEndianBytes
+    msg[0x8a] = 0x02 // Deactivate window
+    SLPSPostEventRecordTo(&psn, &msg)
+
     msg[0x3c...0x3f] = window.littleEndianBytes
-
-    msg[0x08] = 0x01 // Synthetic mouse down
+    msg[0x8a] = 0x01 // Activate window
     SLPSPostEventRecordTo(&psn, &msg)
-
-    msg[0x08] = 0x02 // Synthetic mouse up
-    SLPSPostEventRecordTo(&psn, &msg)
+  } else {
+    _SLPSSetFrontProcessWithOptions(&psn, window, kCPSUserGenerated)
   }
+
+  var msg = [UInt8](repeating: 0, count: 256)
+  msg[0x04] = 0xf8
+  msg[0x20...0x2f] = ArraySlice<UInt8>(repeating: 0xff, count: 16)
+  msg[0x3a] = 0x10
+  msg[0x3c...0x3f] = window.littleEndianBytes
+
+  msg[0x08] = 0x01 // Synthetic mouse down
+  SLPSPostEventRecordTo(&psn, &msg)
+
+  msg[0x08] = 0x02 // Synthetic mouse up
+  SLPSPostEventRecordTo(&psn, &msg)
 }
 
 guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
