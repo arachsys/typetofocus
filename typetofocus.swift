@@ -108,7 +108,7 @@ guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
         default:
           break
       }
-      return Unmanaged.passRetained(event)
+      return Unmanaged.passUnretained(event)
     }, userInfo: nil) else {
   fputs("Failed to create event tap\n", stderr)
   exit(EXIT_FAILURE)
