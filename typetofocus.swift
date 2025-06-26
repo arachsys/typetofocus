@@ -140,7 +140,6 @@ mouse = CGEvent.tapCreate(tap: .cgSessionEventTap,
   }, userInfo: nil)
 
 guard let keys, let mouse else {
-  fputs("Failed to create event tap\n", stderr)
   exit(EXIT_FAILURE)
 }
 
