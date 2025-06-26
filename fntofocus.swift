@@ -115,5 +115,4 @@ guard let keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
 
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
   CFMachPortCreateRunLoopSource(kCFAllocatorDefault, keys, 0), .commonModes)
-CGEvent.tapEnable(tap: keys, enable: true)
 RunLoop.main.run()

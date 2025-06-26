@@ -141,9 +141,11 @@ guard let keys, let mouse else {
   exit(EXIT_FAILURE)
 }
 
+CGEvent.tapEnable(tap: keys, enable: true)
+CGEvent.tapEnable(tap: mouse, enable: false)
+
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
   CFMachPortCreateRunLoopSource(kCFAllocatorDefault, keys, 0), .commonModes)
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
   CFMachPortCreateRunLoopSource(kCFAllocatorDefault, mouse, 0), .commonModes)
-CGEvent.tapEnable(tap: keys, enable: true)
 RunLoop.main.run()
