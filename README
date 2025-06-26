@@ -1,0 +1,58 @@
+TypeToFocus and FnToFocus
+=========================
+
+Occasional users of macOS are often frustrated by clumsy click-to-focus,
+which contrasts starkly with the streamlined point-to-focus available on
+more user-friendly Linux and BSD windowing systems.
+
+Traditional point-to-focus doesn't work well with the global menu bar
+on macOS. As your pointer makes the long journey north to access it,
+it's all too easy to inadvertently switch focus and be greeted by menus
+for the wrong window on arrival.
+
+TypeToFocus implements a variant of point-to-focus which fits better with
+this design. When the pointer enters a new window, focus is left unchanged
+until the user starts to type, but it is changed in time for the first
+keystroke to be correctly delivered to the intended target. This is done
+without raising the window using reverse-engineered SkyLight interfaces.
+
+Only windows on the standard layer are eligible for focus changes, so
+there are no awkward interactions with the desktop, menu bar, dock or
+character viewer.
+
+FnToFocus provides the same focus-without-raise action as TypeToFocus, but
+bound to a keyboard shortcut of tapping the Fn key. Holding the Fn key to
+use it as a modifier in the standard way will not trigger the focus change.
+
+Both utilities run silently in the background without adding UI clutter
+and are carefully optimised for energy efficiency.
+
+
+Installation
+------------
+
+To build the applications, run 'make' at the top of the source tree.
+This requires the Apple command line tools but doesn't depend on Xcode.
+macOS will automatically offer to download and install these if necessary.
+
+Move the application you want to use to /Applications then launch it
+from the finder. The first time it is run, you will be prompted to grant
+accessibility permissions in System Settings, after which you will need
+to run it again.
+
+These utilities intentionally have no dock or bar icon, so you can only
+check they are running correctly by observing their behaviour or by listing
+processes, but macOS will prevent you from accidentally running multiple
+copies in any case. Typically, you would add one of them to the Open at
+Login list in System Settings -> General -> Login Items & Extensions.
+
+TypeToFocus and FnToFocus should work on any recent version of macOS but
+an up-to-date version of swiftc is required to compile them. Please report
+any problems or bugs to Chris Webb <chris@arachsys.com>.
+
+
+Copying
+-------
+
+This software was written by Chris Webb <chris@arachsys.com> and is
+distributed as Free Software under the terms of the MIT license in COPYING.
