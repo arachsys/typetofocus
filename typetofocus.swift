@@ -1,9 +1,7 @@
 import Foundation
 import ApplicationServices
 
-let accessibility = AXUIElementCreateSystemWide()
 let skylight = SLSMainConnectionID()
-
 var current: CGWindowID?
 var keys, mouse: CFMachPort?
 

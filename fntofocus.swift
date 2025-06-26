@@ -1,7 +1,6 @@
 import Foundation
 import ApplicationServices
 
-let accessibility = AXUIElementCreateSystemWide()
 let skylight = SLSMainConnectionID()
 
 extension UInt32 {
