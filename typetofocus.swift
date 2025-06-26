@@ -35,7 +35,7 @@ func focus() -> CGWindowID? {
     return nil
   }
 
-  if ["Dock", "Window Server"].contains(owner(window)) {
+  if ["Dock", "Emoji & Symbols", "Window Server"].contains(owner(window)) {
     return window
   }
 
