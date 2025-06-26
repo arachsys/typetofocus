@@ -33,11 +33,9 @@ func focus() -> CGWindowID? {
     return nil
   }
 
-  if ["Dock", "Emoji & Symbols", "Window Server"].contains(owner(window)) {
+  if layer(window) != 0 {
     return window
-  }
-
-  if active(psn) {
+  } else if active(psn) {
     guard let focused = focused(), focused != window else {
       return window
     }
@@ -94,9 +92,9 @@ func focused() -> CGWindowID? {
   return nil
 }
 
-func owner(_ window: CGWindowID) -> String? {
+func layer(_ window: CGWindowID) -> Int {
   return (CGWindowListCopyWindowInfo([.optionIncludingWindow], window)
-    as? [[String: Any]])?.first?[kCGWindowOwnerName as String] as? String
+    as? [[String: Any]])?.first?[kCGWindowLayer as String] as? Int ?? -1
 }
 
 keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
