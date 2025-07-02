@@ -46,6 +46,11 @@ processes, but macOS will prevent you from accidentally running multiple
 copies in any case. Typically, you would add one of them to the Open at
 Login list in System Settings -> General -> Login Items & Extensions.
 
+If you subsequently rebuild and replace the application, you must manually
+remove the old entry granting it accessibility permissions in System
+Settings, otherwise macOS will silently deny access and you will not be
+prompted to authorise the updated version.
+
 TypeToFocus and FnToFocus should work on any recent version of macOS but
 an up-to-date version of swiftc is required to compile them. Please report
 any problems or bugs to Chris Webb <chris@arachsys.com>.
