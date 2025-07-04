@@ -99,14 +99,23 @@ func layer(_ window: CGWindowID) -> Int {
 
 keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
   place: .headInsertEventTap, options: .defaultTap,
-  eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+  eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue)
+    | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+    | CGEventMask(1 << CGEventType.rightMouseDown.rawValue)
+    | CGEventMask(1 << CGEventType.otherMouseDown.rawValue),
   callback: { _, type, event, _ in
     switch type {
       case .tapDisabledByTimeout:
         exit(EXIT_FAILURE)
       case .keyDown:
         current = focus()
-        if let keys, let mouse, current != nil {
+        if let keys, let mouse {
+          CGEvent.tapEnable(tap: keys, enable: false)
+          CGEvent.tapEnable(tap: mouse, enable: true)
+        }
+      case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+        current = focused()
+        if let keys, let mouse {
           CGEvent.tapEnable(tap: keys, enable: false)
           CGEvent.tapEnable(tap: mouse, enable: true)
         }
