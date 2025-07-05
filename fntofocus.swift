@@ -19,14 +19,8 @@ func active(_ psn: ProcessSerialNumber) -> Bool {
 }
 
 func focus() {
-  var client = Int32()
-  var location = CGPoint()
   var psn = ProcessSerialNumber()
-  var window = CGWindowID()
-
-  guard var point = CGEvent(source: nil)?.location,
-      SLSFindWindowAndOwner(skylight, 0, 1, 0, &point, &location, &window,
-        &client) == .success,
+  guard let (window, client) = target(CGEvent(source: nil)?.location),
       SLSGetConnectionPSN(client, &psn) == .success else {
     return
   }
@@ -93,7 +87,16 @@ func layer(_ window: CGWindowID) -> Int {
     as? [[String: Any]])?.first?[kCGWindowLayer as String] as? Int ?? -1
 }
 
-guard let keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
+func target(_ location: CGPoint?) -> (CGWindowID, Int32)? {
+  var client = Int32(), point = CGPoint(), window = CGWindowID()
+  if var location, SLSFindWindowAndOwner(skylight, 0, 1, 0, &location,
+      &point, &window, &client) == .success {
+    return (window, client)
+  }
+  return nil
+}
+
+guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
     place: .headInsertEventTap, options: .defaultTap,
     eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
     callback: { _, type, event, _ in
@@ -112,5 +115,5 @@ guard let keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
 }
 
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
-  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, keys, 0), .commonModes)
+  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0), .commonModes)
 RunLoop.main.run()

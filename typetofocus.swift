@@ -3,7 +3,6 @@ import ApplicationServices
 
 let skylight = SLSMainConnectionID()
 var current: CGWindowID?
-var keys, mouse: CFMachPort?
 
 extension UInt32 {
   var littleEndianBytes: ArraySlice<UInt8> {
@@ -21,14 +20,8 @@ func active(_ psn: ProcessSerialNumber) -> Bool {
 }
 
 func focus() -> CGWindowID? {
-  var client = Int32()
-  var location = CGPoint()
   var psn = ProcessSerialNumber()
-  var window = CGWindowID()
-
-  guard var point = CGEvent(source: nil)?.location,
-      SLSFindWindowAndOwner(skylight, 0, 1, 0, &point, &location, &window,
-        &client) == .success,
+  guard let (window, client) = target(CGEvent(source: nil)?.location),
       SLSGetConnectionPSN(client, &psn) == .success else {
     return nil
   }
@@ -97,64 +90,44 @@ func layer(_ window: CGWindowID) -> Int {
     as? [[String: Any]])?.first?[kCGWindowLayer as String] as? Int ?? -1
 }
 
-keys = CGEvent.tapCreate(tap: .cgSessionEventTap,
-  place: .headInsertEventTap, options: .defaultTap,
-  eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue)
-    | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
-    | CGEventMask(1 << CGEventType.rightMouseDown.rawValue)
-    | CGEventMask(1 << CGEventType.otherMouseDown.rawValue),
-  callback: { _, type, event, _ in
-    switch type {
-      case .tapDisabledByTimeout:
-        exit(EXIT_FAILURE)
-      case .keyDown:
-        current = focus()
-        if let keys, let mouse {
-          CGEvent.tapEnable(tap: keys, enable: false)
-          CGEvent.tapEnable(tap: mouse, enable: true)
-        }
-      case .leftMouseDown, .rightMouseDown, .otherMouseDown:
-        current = focused()
-        if let keys, let mouse {
-          CGEvent.tapEnable(tap: keys, enable: false)
-          CGEvent.tapEnable(tap: mouse, enable: true)
-        }
-      default:
-        break
-    }
-    return Unmanaged.passUnretained(event)
-  }, userInfo: nil)
-
-mouse = CGEvent.tapCreate(tap: .cgSessionEventTap,
-  place: .headInsertEventTap, options: .defaultTap,
-  eventsOfInterest: CGEventMask(1 << CGEventType.mouseMoved.rawValue),
-  callback: { _, type, event, _ in
-    switch type {
-      case .tapDisabledByTimeout:
-        exit(EXIT_FAILURE)
-      case .mouseMoved:
-        var client = Int32(), point = CGPoint(), window = CGWindowID()
-        if SLSFindWindowAndOwner(skylight, 0, 1, 0, &event.location,
-              &point, &window, &client) == .success,
-            let keys, let mouse, current != window {
-          CGEvent.tapEnable(tap: keys, enable: true)
-          CGEvent.tapEnable(tap: mouse, enable: false)
-        }
-      default:
-        break
-    }
-    return Unmanaged.passUnretained(event)
-  }, userInfo: nil)
-
-guard let keys, let mouse else {
-  exit(EXIT_FAILURE)
+func target(_ location: CGPoint?) -> (CGWindowID, Int32)? {
+  var client = Int32(), point = CGPoint(), window = CGWindowID()
+  if var location, SLSFindWindowAndOwner(skylight, 0, 1, 0, &location,
+      &point, &window, &client) == .success {
+    return (window, client)
+  }
+  return nil
 }
 
-CGEvent.tapEnable(tap: keys, enable: true)
-CGEvent.tapEnable(tap: mouse, enable: false)
+guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap,
+    place: .headInsertEventTap, options: .defaultTap,
+    eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue)
+      | CGEventMask(1 << CGEventType.leftMouseDown.rawValue)
+      | CGEventMask(1 << CGEventType.rightMouseDown.rawValue)
+      | CGEventMask(1 << CGEventType.otherMouseDown.rawValue)
+      | CGEventMask(1 << CGEventType.mouseMoved.rawValue),
+    callback: { _, type, event, _ in
+      switch type {
+        case .tapDisabledByTimeout:
+          exit(EXIT_FAILURE)
+        case .keyDown where current == nil:
+          current = focus()
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+          if current == nil, let (window, _) = target(event.location) {
+            current = window
+          }
+        case .mouseMoved where current != nil:
+          if let (window, _) = target(event.location), current != window {
+            current = nil
+          }
+        default:
+          break
+      }
+      return Unmanaged.passUnretained(event)
+    }, userInfo: nil) else {
+  exit(EXIT_FAILURE);
+}
 
 CFRunLoopAddSource(CFRunLoopGetCurrent(),
-  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, keys, 0), .commonModes)
-CFRunLoopAddSource(CFRunLoopGetCurrent(),
-  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, mouse, 0), .commonModes)
+  CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0), .commonModes)
 RunLoop.main.run()
